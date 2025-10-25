@@ -1,0 +1,40 @@
+!pip install opencv-python matplotlib numpy
+import cv2
+import matplotlib.pyplot as plt
+import requests
+import numpy as np
+
+url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/European_hamster_%28Cricetus_cricetus%29_Meidling_5.jpg/330px-European_hamster_%28Cricetus_cricetus%29_Meidling_5.jpg'
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+
+odpowiedz = requests.get(url, headers=headers)
+
+if odpowiedz.status_code == 200:
+    obraz = np.asarray(bytearray(odpowiedz.content), dtype=np.uint8)
+    obraz = cv2.imdecode(obraz, -1)
+
+    plt.imshow(cv2.cvtColor(obraz, cv2.COLOR_BGR2RGB))
+    plt.title("Oryginalny obraz")
+    plt.axis('off')
+    plt.show()
+
+    szerokosc = int(obraz.shape[1] * 0.5)
+    wysokosc = int(obraz.shape[0] * 0.5)
+    nowe_wymiary = (szerokosc, wysokosc)
+    obraz_zmniejszony = cv2.resize(obraz, nowe_wymiary)
+
+    obraz_szary = cv2.cvtColor(obraz_zmniejszony, cv2.COLOR_BGR2GRAY)
+
+    obraz_obrocony = cv2.rotate(obraz_szary, cv2.ROTATE_90_CLOCKWISE)
+
+    plt.imshow(obraz_obrocony, cmap='gray')
+    plt.title("Obraz po modyfikacjach")
+    plt.axis('off')
+    plt.show()
+
+    print("Macierz obrazu po modyfikacjach:")
+    print(obraz_obrocony)
+
+else:
+    print(f"Nie udało się pobrać obrazu, kod błędu: {odpowiedz.status_code}")
+
