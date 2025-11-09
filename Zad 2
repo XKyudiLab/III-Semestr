@@ -1,0 +1,100 @@
+!pip install requests pillow numpy matplotlib opencv-python
+import requests
+from io import BytesIO
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/European_hamster_%28Cricetus_cricetus%29_Meidling_5.jpg/330px-European_hamster_%28Cricetus_cricetus%29_Meidling_5.jpg"
+headers = {"User-Agent": "Mozilla/5.0"}
+
+response = requests.get(url, headers=headers)
+
+if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+    print(" ok.")
+    image = Image.open(BytesIO(response.content)).convert("RGB")
+else:
+    print(" blad.")
+    print(f"Status code: {response.status_code}")
+    plt.figure(figsize=(6,6))
+    plt.text(0.5, 0.5, "Nie udało się pobrać obrazu.\nStrona nie pozwala na zdalne ładowanie zdjęcia.",
+             ha='center', va='center', fontsize=14)
+    plt.axis('off')
+    plt.show()
+    raise SystemExit()
+
+plt.figure(figsize=(6,6))
+plt.imshow(image)
+plt.title("Pobrany obraz")
+plt.axis("off")
+plt.show()
+
+img_array = np.array(image)
+colors = ('r', 'g', 'b')
+
+plt.figure(figsize=(8,5))
+for i, col in enumerate(colors):
+    hist = cv2.calcHist([img_array], [i], None, [256], [0,256])
+    plt.plot(hist, color=col)
+plt.title("Histogram kanałów RGB")
+plt.xlabel("Wartość piksela")
+plt.ylabel("Liczba pikseli")
+plt.show()
+
+gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+plt.figure(figsize=(6,5))
+plt.hist(gray.ravel(), bins=256, color='black')
+plt.title("Histogram jasności (cały obraz)")
+plt.xlabel("Jasność piksela")
+plt.ylabel("Liczba pikseli")
+plt.show()
+
+def evaluate_image_quality(gray_img):
+    mean_intensity = np.mean(gray_img)
+    contrast = gray_img.std()
+    dynamic_range = np.max(gray_img) - np.min(gray_img)
+
+    if contrast < 30:
+        quality = "Zbyt mały kontrast"
+    elif mean_intensity < 50:
+        quality = "Zbyt ciemny obraz"
+    elif mean_intensity > 200:
+        quality = "Zbyt jasny obraz"
+    else:
+        quality = "Dobra jakość obrazu"
+
+    print("\n--- Ocena jakości ---")
+    print(f"Średnia jasność: {mean_intensity:.2f}")
+    print(f"Kontrast (std): {contrast:.2f}")
+    print(f"Zakres dynamiczny: {dynamic_range}")
+    print("Ocena:", quality)
+    return quality
+
+quality = evaluate_image_quality(gray)
+
+def enhance_image(gray_img, quality):
+    enhanced = gray_img.copy()
+    if "kontrast" in quality.lower():
+        enhanced = cv2.equalizeHist(gray_img)
+    elif "ciemny" in quality.lower():
+        enhanced = cv2.convertScaleAbs(gray_img, alpha=1.2, beta=30)
+    elif "jasny" in quality.lower():
+        enhanced = cv2.convertScaleAbs(gray_img, alpha=0.8, beta=-30)
+    return enhanced
+
+if quality != "Dobra jakość obrazu":
+    improved = enhance_image(gray, quality)
+    plt.figure(figsize=(10,5))
+    plt.subplot(1,2,1)
+    plt.imshow(gray, cmap='gray')
+    plt.title("Oryginał (szary)")
+    plt.axis('off')
+    plt.subplot(1,2,2)
+    plt.imshow(improved, cmap='gray')
+    plt.title("Po poprawie jakości")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Obraz oceniony jako dobrej jakości – nie wymaga korekty.")
